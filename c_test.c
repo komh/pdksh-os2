@@ -456,6 +456,7 @@ test_eaccess(path, mode)
 	}
 #endif /* !HAVE_DEV_FD */
 
+#ifndef OS2
 	/* On most (all?) unixes, access() says everything is executable for
 	 * root - avoid this on files by using stat().
 	 */
@@ -475,6 +476,7 @@ test_eaccess(path, mode)
 		if (res == 0 && (mode & (R_OK|W_OK)))
 			res = eaccess(path, mode);
 	} else
+#endif
 		res = eaccess(path, mode);
 
 	return res;
