@@ -1,3 +1,21 @@
+After 5.2.14:
+
+ 1. New environment variables EXEC_PM_BOND EXEC_PM_WINDOW_HIDE
+    EXEC_PM_SWITCH_ENTRY_HIDE EXEC_PM_ASYNC recognized.
+
+ 2. Will not steal characters from a terminal while the kid is running.
+
+ 3. The `read' command works with text-mode files too.
+
+ 4. When kid executes the `exec' command, its parent gets a correct exit code.
+
+ 5. The scripts without extension now do not have '.' appended to the name.
+
+Version 5.2.14
+
+pdkhs now forwards SIGBREAK etc to childs which forgot to intercept keyboard
+interrupts (such as ping.exe).
+
 Version 5.2.6
 
  1. The bug where hereis documents would leave temporary files behind has 

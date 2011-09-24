@@ -109,6 +109,8 @@ struct ioword {
 #define XCOPROC BIT(9)		/* starting a co-process */
 #define XTIME	BIT(10)		/* timeing TCOM command */
 #define XINTACT BIT(11)		/* OS2: proc started from interactive session */
+#define XFORKEXEC BIT(12)	/* OS2: XEXEC, but not the exec shell command */
+#define XSHARPBANG BIT(13)	/* OS2: cmd is from hash-bang line */
 
 /*
  * flags to control expansion of words (assumed by t->evalflags to fit

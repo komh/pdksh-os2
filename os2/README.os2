@@ -496,3 +496,25 @@ employment.
 
 	Dale DePriest
 
+ENVIRONMENT VARIABLES
+
+The following environment variables have a special meaning in this port:
+
+   Setting EXEC_PM_BOND=0 disables the bond between pdksh and 
+   a PM child application.  When the bond is active, chosing the pdksh window
+   from the switch list (shown on, say, Control-Esc) will actually choose the
+   PM application
+
+   Setting EXEC_PM_WINDOW_HIDE=1 will hide the pdksh window while a
+   kid PM application is running.
+
+   Setting EXEC_PM_SWITCH_ENTRY_HIDE=1 will remove the pdksh entry
+   from the switch list (shown on, say, Control-Esc) while a
+   kid PM application is running. 
+
+   Setting EXEC_PM_ASYNC=1 enables async start of PM applicaitons
+   from interactive shells when not a part of a pipeline; setting this
+   may break things if a script checks for $? later.
+
+   Setting EXECSHELL=PROGRAM will use PROGRAM instead of $OS2_SHELL for
+   running scripts without the #! header line.

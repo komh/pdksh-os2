@@ -2,10 +2,12 @@
 #define INCL_DOSERRORS
 #define INCL_DOSSESMGR
 #define INCL_WINPROGRAMLIST
+#define INCL_WINFRAMEMGR
 #include <os2.h>
 #include "config.h"
 #include "sh.h"				/* To get inDOS(). */
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <io.h>
 #include <process.h>
@@ -75,7 +77,6 @@ static int
 newsession(int type, int mode, char *cmd, char **args, char **env)
 {
   STARTDATA sd;
-  STATUSDATA st;
   REQUESTDATA qr;
   ULONG sid, pid, len, cnt, rc;
   PVOID ptr;
@@ -132,16 +133,83 @@ newsession(int type, int mode, char *cmd, char **args, char **env)
   sd.ObjectBuffer = object;
   sd.ObjectBuffLen = sizeof(object);
 
-  if ( DosStartSession(&sd, &sid, &pid) )
+  rc = DosStartSession(&sd, &sid, &pid);
+  if (rc && rc != ERROR_SMG_START_IN_BACKGROUND)
     return errno = ENOEXEC, -1;
 
   if ( mode == P_WAIT )
   {
-    st.Length = sizeof(st);
-    st.SelectInd = SET_SESSION_UNCHANGED;
-    st.BondInd = SET_SESSION_BOND;
-    DosSetSession(sid, &st);
-    if ( DosReadQueue(qid, &qr, &len, &ptr, 0, DCWW_WAIT, &prio, 0) )
+    STATUSDATA st;
+    char *set_bond;
+    char *window_hide;
+    char *switch_entry_hide;		/* Window list */
+    HSWITCH hSwitch = NULLHANDLE;
+    SWCNTRL switchData;
+    ULONG old_visibility;
+    ULONG old_size = SWP_MINIMIZE;	/* By default, do nothing */
+
+    /* Setting EXEC_PM_BOND=0 disables the bond between pdksh and 
+       a PM application.  When the bond is active, chosing the pdksh window
+       from the switch list (say, after Control-Esc) will actually choose the
+       PM application. */
+    set_bond = str_val(global("EXEC_PM_SET_BOND"));
+    if (!set_bond || !*set_bond || atoi(set_bond)) {	/* Default on */
+      st.Length = sizeof(st);
+      st.SelectInd = SET_SESSION_UNCHANGED;
+      st.BondInd = SET_SESSION_BOND;
+      DosSetSession(sid, &st);
+    }
+
+    /* Setting EXEC_PM_WINDOW_HIDE=1 will hide the pdksh window while a
+       kid PM application is running. */
+    window_hide = str_val(global("EXEC_PM_WINDOW_HIDE"));
+    if ( !( window_hide && *window_hide && atoi(window_hide) ) )
+      window_hide = 0;
+
+    /* Setting EXEC_PM_SWITCH_ENTRY_HIDE=1 will remove the pdksh entry
+       from the switch list (shown on, say, Control-Esc) while a
+       kid PM application is running. */
+    switch_entry_hide = str_val(global("EXEC_PM_SWITCH_ENTRY_HIDE"));
+    if (!(switch_entry_hide && *switch_entry_hide && atoi(switch_entry_hide)))
+      switch_entry_hide = 0;
+    if ( switch_entry_hide || window_hide )
+      hSwitch = WinQuerySwitchHandle (NULLHANDLE, getpid ());
+    if (hSwitch == NULLHANDLE)
+      switch_entry_hide = window_hide = 0;
+    else {
+      rc = WinQuerySwitchEntry(hSwitch, &switchData);
+      if (rc != 0)
+        switch_entry_hide = window_hide = 0, hSwitch = NULLHANDLE;
+    }
+    if (switch_entry_hide) {
+      old_visibility = switchData.uchVisibility;
+      switchData.uchVisibility = SWL_INVISIBLE;
+      rc = WinChangeSwitchEntry(hSwitch, &switchData);
+      if (rc != 0)
+	switch_entry_hide = 0;
+    }
+    if (window_hide) {
+      SWP swp;
+
+      rc = WinQueryWindowPos(switchData.hwnd, &swp);
+      if (rc)
+	old_size = (swp.fl & (SWP_MINIMIZE | SWP_MAXIMIZE | SWP_RESTORE));
+    }
+    if (old_size != SWP_MINIMIZE)
+      WinPostMsg(switchData.hwnd, WM_SYSCOMMAND, MPFROMSHORT(SC_MINIMIZE), 0);
+
+    rc = DosReadQueue(qid, &qr, &len, &ptr, 0, DCWW_WAIT, &prio, 0);
+
+    if (switch_entry_hide) {		/* Restore */
+      switchData.uchVisibility = old_visibility;
+      WinChangeSwitchEntry(hSwitch, &switchData);
+    }
+    if (old_size != SWP_MINIMIZE)
+      WinPostMsg(switchData.hwnd, WM_SYSCOMMAND,
+		 MPFROMSHORT((old_size == SWP_RESTORE)
+			     ? SC_RESTORE
+			     : SC_MAXIMIZE), 0);
+    if (rc)
       return -1;
     rc = ((PUSHORT)ptr)[1];
     DosFreeMem(ptr);
@@ -151,17 +219,64 @@ newsession(int type, int mode, char *cmd, char **args, char **env)
     exit(0);
 }
 
+#define CHECK_CONSECUTIVE_FDS	40	/* Hack to enumerate open fds */
+
+/* EMX's execve()/spawnve(P_OVERLAY) are not waiting for the kid
+   to end (unless after fork()), so our parent will get *our* exit code
+   instead of the exec()ed program.
+   The following code is an approximation to spawn_fork_exec() of EMX.
+ */
+static int
+my_overlayve(int flag, char *path, char **args, char **env)
+{
+  int rc, pid, fd = -1, prev_fd = -1, status;
+
+  pid = spawnve(P_NOWAIT | flag, path, args, env);
+  if (pid <= 0)
+    return -1;
+  /* Close all the non-socket handles: closing sockets has severe side
+     effects due to per-system semantic of sockets. */
+  while (++fd <= prev_fd + CHECK_CONSECUTIVE_FDS) {
+    struct stat buf;
+
+    if (fstat(fd, &buf) < 0)
+      continue;			/* Not an open filehandle */
+    prev_fd = fd;
+    if (!S_ISSOCK(buf.st_mode))
+      close(fd);		/* Needed both for inheritable and others */
+  }
+  while ((rc = waitpid(pid, &status, 0)) < 0 && errno == EINTR)
+    /* NOTHING */ ;
+  if (rc < 0)
+    return -1;
+  _exit(status >> 8);
+}
+
 int ksh_execve(char *cmd, char **args, char **env, int flags)
 {
   ULONG apptype;
   char path[256], *p;
-  int rc;
+  int rc, len = strlen(cmd);
 
+  if ( len >= sizeof(path) ) {
+     errno = ENAMETOOLONG;
+     return -1;
+  }
   strcpy(path, cmd);
   for ( p = path; *p; p++ )
     if ( *p == '/' )
       *p = '\\';
 
+  if (!(flags & XSHARPBANG)		/* The extension was not appended */
+      && !strrchr((p = ksh_strrchr_dirsep(path)) ? p : path, '.')) {
+      /* Append dot, otherwise some suffix will be appended... */
+      if ( len + 1 >= sizeof(path) ) {
+         errno = ENAMETOOLONG;
+         return -1;
+      }
+      path[len]     = '.';
+      path[len + 1] = '\0';
+  }
   if (_emx_env & 0x1000) {		/* RSX, do best we can do. */
       int len = strlen(cmd);
 
@@ -179,7 +294,9 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
   }
 
   if ( DosQueryAppType(path, &apptype) == 0 )
-  {
+  {	/* Start asyncroneously if run interactively and not a part of a pipeline */
+    int force_async_flag;
+
     if (apptype & FAPPTYP_DOS)
       return newsession(isfullscreen() ? SSF_TYPE_VDM :
                                          SSF_TYPE_WINDOWEDVDM, 
@@ -192,25 +309,27 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
                                          PROG_SEAMLESSCOMMON,
 			P_WAIT, path, args, env);
 
+    /* Setting EXEC_PM_ASYNC=1 enables async start of PM applicaitons
+       from interactive shells when not a part of a pipeline; setting this
+       may break things if a script checks for $? later. */
+    force_async_flag = ((flags & XINTACT) && !(flags & XPIPE));
+    if (force_async_flag) {
+      char *user_async = str_val(global("EXEC_PM_ASYNC"));
+      if ( !( user_async && *user_async && atoi(user_async) ) )
+        force_async_flag = 0;
+    }
+    force_async_flag = (force_async_flag ? P_NOWAIT : P_WAIT);
     if ( (apptype & FAPPTYP_EXETYPE) == FAPPTYP_WINDOWAPI ) {
       printf(""); /* kludge to prevent PM apps from core dumping */
       /* Start new session if interactive and not a part of a pipe. */
-      return newsession(SSF_TYPE_PM, 
-			( (flags & XINTACT) && (flags & XPIPE)
-				 /* _isterm(0) && _isterm(1) && _isterm(2) */
-			  ? P_NOWAIT 
-			  : P_WAIT),
+      return newsession(SSF_TYPE_PM, force_async_flag,
 			path, args, env);
     }
 
     if ( (apptype & FAPPTYP_EXETYPE) == FAPPTYP_NOTWINDOWCOMPAT ||
          (apptype & FAPPTYP_EXETYPE) == FAPPTYP_NOTSPEC )
       if ( !isfullscreen() )
-        return newsession(SSF_TYPE_FULLSCREEN, 
-			( (flags & XINTACT) && (flags & XPIPE)
-				 /* _isterm(0) && _isterm(1) && _isterm(2) */
-			  ? P_NOWAIT 
-			  : P_WAIT),
+        return newsession(SSF_TYPE_FULLSCREEN, force_async_flag,
 			path, args, env);
   }
   do_execve:
@@ -221,17 +340,22 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
 	 work to P_QUOTE if needed.  */
       char **pp = args;
       int do_quote = 0;
+
       for (; !do_quote && *pp; pp++) {
 	  for (p = *pp; *p; p++) {
 	      if (*p == '*' || *p == '?') {
-		  do_quote = 1;
+		  do_quote = P_QUOTE;
 		  break;
 	      }
 	  }
       }
       
-      if ( (rc = spawnve(P_OVERLAY | (do_quote ? P_QUOTE : 0),
-			 path, args, env)) != -1 )
+      /* Work around EMX "optimization": unless exec-after-fork(),
+	 our parent would get exit code 0 immediately on exec(). */
+      if (!(flags & XFORKEXEC))	/* Returns on error only */
+	return(my_overlayve(do_quote, path, args, env));
+      rc = spawnve(P_OVERLAY | do_quote, path, args, env);
+      if ( rc != -1 )
 	  exit(rc);
   }
   return -1;

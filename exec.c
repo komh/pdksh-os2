@@ -415,8 +415,8 @@ execute(t, flags)
 #endif
 		restoresigs();
 		cleanup_proc_env();
-		/* XINTACT bit is for OS2 */
-		ksh_execve(t->str, t->args, ap, (flags & XINTACT) ? 1 : 0);
+		/* flags are for OS2 */
+		ksh_execve(t->str, t->args, ap, flags);
 		if (errno == ENOEXEC)
 			scriptexec(t, ap);
 		else
@@ -817,7 +817,7 @@ scriptexec(tp, ap)
 							strlen(a0) + 5, ATEMP);
 						if (search_access(tmp_a0, X_OK,
 								(int *) 0))
-							a0 = a2;
+						    a0 = a2;
 						afree(tmp_a0, ATEMP);
 					}
 # endif /* OS2 */
@@ -848,7 +848,7 @@ scriptexec(tp, ap)
 #endif	/* SHARPBANG */
 	*tp->args = shell;
 
-	ksh_execve(tp->args[0], tp->args, ap, 0);
+	ksh_execve(tp->args[0], tp->args, ap, XSHARPBANG);
 
 	/* report both the program that was run and the bogus shell */
 	errorf("%s: %s: %s", tp->str, shell, strerror(errno));
@@ -1151,9 +1151,13 @@ search_access(path, mode, errnop)
 	sfx = mode == R_OK ? rsuffixes : xsuffixes;
 	for (i = 0; sfx[i]; i++) {
 		strcpy(tp, p = sfx[i]);
-		if (search_access1(mpath, R_OK, errnop) == 0)
+		if (search_access1(mpath, R_OK, errnop) == 0) {
+			/* Remove the "." suffix, it busts $0... */
+			if (tp[1] == 0)
+			    tp[0] = '\0';
 			return 0;
-		*tp = '\0';
+		}
+		tp[0] = '\0';
 	}
 	return -1;
 #endif /* !OS2 */

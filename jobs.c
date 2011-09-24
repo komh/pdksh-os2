@@ -632,13 +632,15 @@ exchild(t, flags, close_fd)
 		Flag(FMONITOR) = 0;
 #endif /* JOBS */
 		Flag(FTALKING) = 0;
+		flags &= (XERROK|XPIPE);	/* XPIPE used on OS/2 */
 #ifdef OS2
 		if (tty_fd >= 0)
 			flags |= XINTACT;
+		flags |= XFORKEXEC;
 #endif /* OS2 */
 		tty_close();
 		cleartraps();
-		execute(t, (flags & XERROK) | XEXEC); /* no return */
+		execute(t, flags | XEXEC); /* no return */
 		internal_errorf(0, "exchild: execute() returned");
 		unwind(LLEAVE);
 		/* NOTREACHED */

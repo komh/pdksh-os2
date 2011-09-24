@@ -1089,3 +1089,14 @@ expected-stdout:
 	ot OK
 ---
 
+name: regression-63
+description:
+	Check if exec runs syncroneously.
+stdin:
+	$TEST_PROG_KSH -c 'exec sh -c "sleep 1; echo OK 1"'
+	echo OK 2
+expected-stdout: 
+	OK 1
+	OK 2
+---
+
