@@ -53,3 +53,27 @@
 # define GCC_FUNC_ATTR(x)
 # define GCC_FUNC_ATTR2(x,y)
 #endif /* HAVE_GCC_FUNC_ATTR */
+
+#ifdef OS2
+/* Due to a combination of two features, we might steal keys from the kid:
+   a) TERMIOS interface is implemented via a thread which constantly
+      reads-ahead from the keyboard.  The thread is auto-switched off for
+      syncroneously executed kids, but not for asyncroneous ones.  This
+      thread is *not* switched off after it starts.  TERMIO interface
+      grants a flag in c_lflags which switches this thread off when
+      restoring the state.
+
+   b) we execute kids asyncroneously.  Otherwise the following may happen:
+      the kid could forget to register itself as a target for Control-Break
+      (e.g., ping).  Then it is we who gets Control-Break and dies.  By
+      the semantic of OS/2 program exit, this leaves ourselves as zombies until
+      the kid terminates (and the kid unkillable).
+      Running kids asyncroneously allows up to we catch signals during the
+      kid execution, and pass them to the kid by force in the case it is
+      us who received the signal.
+ */
+# undef HAVE_TERMIOS_H
+# ifndef HAVE_TERMIO_H
+#  define HAVE_TERMIO_H
+# endif
+#endif

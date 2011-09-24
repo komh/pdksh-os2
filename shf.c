@@ -133,10 +133,6 @@ shf_reopen(fd, sflags, shf)
 	if ((sflags & SHF_GETFL) || SHF_WASTEXT) {
 		int flags = fcntl(fd, F_GETFL, 0);
 
-#if SHF_WASTEXT
-		if (!(flags & O_BINARY))
-		    sflags |= SHF_WASTEXT;
-#endif
 		if (!(sflags & SHF_GETFL)) ; /* Do nothing */
 		else if (flags < 0)
 			/* will get an error on first read/write */
@@ -147,6 +143,10 @@ shf_reopen(fd, sflags, shf)
 			case O_WRONLY: sflags |= SHF_WR; break;
 			case O_RDWR: sflags |= SHF_RDWR; break;
 			}
+#if SHF_WASTEXT
+		if (!(flags & O_BINARY) && (sflags & SHF_RD))
+		    sflags |= SHF_WASTEXT;
+#endif
 	}
 
 	if (!(sflags & (SHF_RD | SHF_WR)))
