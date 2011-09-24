@@ -15,7 +15,6 @@ extern char **environ;
  */
 
 static void	reclaim ARGS((void));
-static void	remove_temps ARGS((struct temp *tp));
 static int	is_restricted ARGS((char *name));
 
 /*
@@ -772,12 +771,15 @@ reclaim()
 	afreeall(&e->area);
 }
 
-static void
+#ifdef OS2
+struct temp *delayed_remove;
+#endif
+
+void
 remove_temps(tp)
 	struct temp *tp;
 {
 #ifdef OS2
-	static struct temp *delayed_remove;
 	struct temp *t, **tprev;
 
 	if (delayed_remove) {

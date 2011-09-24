@@ -337,6 +337,9 @@
 /* Define if you have the <values.h> header file.  */
 /* #undef HAVE_VALUES_H */
 
+/* Otherwise getwd() is used, which does not include the drive */
+#define HAVE_GETCWD
+
 /* Need to use a separate file to keep the configure script from commenting
  * out the undefs....
  */

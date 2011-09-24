@@ -245,8 +245,14 @@ my_overlayve(int flag, char *path, char **args, char **env)
     if (!S_ISSOCK(buf.st_mode))
       close(fd);		/* Needed both for inheritable and others */
   }
+  /* Remove the delayed TMP files which are open in the child */
+  if (delayed_remove)
+    remove_temps(0);
   while ((rc = waitpid(pid, &status, 0)) < 0 && errno == EINTR)
     /* NOTHING */ ;
+  /* Remove the remaining delayed TMP files */
+  if (delayed_remove)
+    remove_temps(0);
   if (rc < 0)
     return -1;
   _exit(status >> 8);
@@ -352,7 +358,7 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
       
       /* Work around EMX "optimization": unless exec-after-fork(),
 	 our parent would get exit code 0 immediately on exec(). */
-      if (!(flags & XFORKEXEC))	/* Returns on error only */
+      if (!(flags & XFORKEXEC) || delayed_remove)	/* Returns on error only */
 	return(my_overlayve(do_quote, path, args, env));
       rc = spawnve(P_OVERLAY | do_quote, path, args, env);
       if ( rc != -1 )

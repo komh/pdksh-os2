@@ -204,6 +204,7 @@ typedef	RETSIGTYPE (*handler_t) ARGS((int));	/* signal handler */
 
 /* Special cases for execve(2) */
 #ifdef OS2
+extern	struct temp *delayed_remove;
 extern int ksh_execve(char *cmd, char **args, char **env, int flags);
 #else /* OS2 */
 # if defined(OS_ISC) && defined(_POSIX_SOURCE)
