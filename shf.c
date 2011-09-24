@@ -587,6 +587,12 @@ shf_getse(buf, bsize, shf)
 		buf += ncopy;
 		bsize -= ncopy;
 #ifdef OS2
+		if (shf->rnleft > 0 && *shf->rp == '\n' && buf[-1] == '\r') {
+			buf[-1] = '\n';
+			shf->rp++;
+			shf->rnleft--;
+		}
+
 		if (end && buf > orig_buf + 1 && buf[-2] == '\r') {
 			buf--;
 			bsize++;
