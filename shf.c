@@ -130,10 +130,15 @@ shf_reopen(fd, sflags, shf)
 	int bsize = sflags & SHF_UNBUF ? (sflags & SHF_RD ? 1 : 0) : SHF_BSIZE;
 
 	/* use fcntl() to figure out correct read/write flags */
-	if (sflags & SHF_GETFL) {
+	if ((sflags & SHF_GETFL) || SHF_WASTEXT) {
 		int flags = fcntl(fd, F_GETFL, 0);
 
-		if (flags < 0)
+#if SHF_WASTEXT
+		if (!(flags & O_BINARY))
+		    sflags |= SHF_WASTEXT;
+#endif
+		if (!(sflags & SHF_GETFL)) ; /* Do nothing */
+		else if (flags < 0)
 			/* will get an error on first read/write */
 			sflags |= SHF_RDWR;
 		else
@@ -291,6 +296,8 @@ int
 shf_flush(shf)
 	struct shf *shf;
 {
+	int ret = 0;
+
 	if (shf->flags & SHF_STRING)
 		return (shf->flags & SHF_WR) ? EOF : 0;
 
@@ -309,11 +316,16 @@ shf_flush(shf)
 			shf->rnleft = 0;
 			shf->rp = shf->buf;
 		}
-		return 0;
+		goto end;
 	} else if (shf->flags & SHF_WRITING)
-		return shf_emptybuf(shf, 0);
+		ret = shf_emptybuf(shf, 0);
 
-	return 0;
+  end:
+#if SHF_WASTEXT	/* Be extra safe: set binary mode on fill, unset on flush */
+	if (shf->flags & SHF_WASTEXT)
+	    setmode(shf->fd, O_TEXT);
+#endif
+	return ret;
 }
 
 /* Write out any buffered data.  If currently reading, flushes the read
@@ -424,6 +436,10 @@ shf_fillbuf(shf)
 	shf->flags |= SHF_READING;
 
 	shf->rp = shf->buf;
+#if SHF_WASTEXT	/* Be extra safe: set binary mode on fill, unset on flush */
+	if (shf->flags & SHF_WASTEXT)
+	    setmode(shf->fd, O_BINARY);
+#endif
 	while (1) {
 		shf->rnleft = blocking_read(shf->fd, (char *) shf->buf,
 					    shf->rbsize);

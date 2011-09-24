@@ -54,3 +54,40 @@ expected-stdout:
 	[abc]
 ---
 
+name: read-multiline-1
+description:
+	Check that read works on text files (where text/binary are different).
+stdin:
+	(echo 123; echo 456; echo 789) > IN
+	if test -z "" ; then
+	  read data
+	  read data1
+	  read data2
+	  echo "'$data'"
+	  echo "'$data1'"
+	  echo "'$data2'"
+	fi < IN
+expected-stdout: 
+	'123'
+	'456'
+	'789'
+---
+
+name: read-multiline-2
+description:
+	Check that read works on pipes.
+stdin:
+	(echo 123; echo 456; echo 789) | if test -z "" ; then
+	  read data
+	  read data1
+	  read data2
+	  echo "'$data'"
+	  echo "'$data1'"
+	  echo "'$data2'"
+	fi
+expected-stdout: 
+	'123'
+	'456'
+	'789'
+---
+
