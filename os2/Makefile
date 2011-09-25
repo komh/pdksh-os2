@@ -121,19 +121,19 @@ $(srcdir)/stamp-h.in: configure.in aclocal.m4 acconfig.h
 	date > $(srcdir)/stamp-h.in
 
 config.h:
-cmd /c copy $(srcdir)\os2\config.h config.h > nul
-touch config.h
+	cmd /c copy $(srcdir)\os2\config.h config.h > nul
+	touch config.h
 Makefile:
-cmd /c copy $(srcdir)\os2\Makefile Makefile > nul
-touch Makefile
+	cmd /c copy $(srcdir)\os2\Makefile Makefile > nul
+	touch Makefile
 # two steps to prevent the creation of a bogus siglist.out
 siglist.out:
-cmd /c copy $(srcdir)\os2\os2siglist.out siglist.out > nul
-touch siglist.out
+	cmd /c copy $(srcdir)\os2\os2siglist.out siglist.out > nul
+	touch siglist.out
 # two steps to prevent the creation of a bogus emacs.out
 emacs.out:
-cmd /c copy $(srcdir)\os2\emacs.out emacs.out > nul
-touch emacs.out
+	cmd /c copy $(srcdir)\os2\emacs.out emacs.out > nul
+	touch emacs.out
 debugtools: check-fd$(exe_suffix) check-sigs$(exe_suffix) \
 	check-pgrp$(exe_suffix)
 
