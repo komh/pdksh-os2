@@ -170,9 +170,6 @@ alloc(size, ap)
 	if (size <= 0)
 		aerror(ap, "allocate bad size");
 	cells = (unsigned)(size + sizeof(Cell) - 1) / sizeof(Cell);
-#ifdef OS2
-	cells++;    /* Kludge for a memory corruption */
-#endif
 
 	/* allocate at least this many cells */
 	acells = cells + NOBJECT_FIELDS;
@@ -277,9 +274,6 @@ aresize(ptr, size, ap)
 		aerror(ap, "allocate bad size");
 	/* New size (in cells) */
 	cells = (unsigned)(size - 1) / sizeof(Cell) + 1;
-#ifdef OS2
-	cells++;    /* Kludge for a memory corruption */
-#endif
 
 	/* Is this a large object?  If so, let malloc deal with it
 	 * directly (unless we are crossing the ICELLS border, in
@@ -435,7 +429,8 @@ afree(ptr, ap)
 		aerror(ap, "freeing free object");
 
 	/* join object with next */
-	if (dp + (dp-1)->size == fp-NOBJECT_FIELDS) { /* adjacent */
+	if (dp + (dp-1)->size == fp-NOBJECT_FIELDS /* adjacent */
+	    && (dp-1)->size + (fp-1)->size + NOBJECT_FIELDS <= ICELLS) {
 		(dp-1)->size += (fp-1)->size + NOBJECT_FIELDS;
 		dp->next = fp->next;
 	} else			/* non-adjacent */
@@ -444,7 +439,8 @@ afree(ptr, ap)
 	/* join previous with object */
 	if (fpp == NULL)
 		bp->freelist = dp;
-	else if (fpp + (fpp-1)->size == dp-NOBJECT_FIELDS) { /* adjacent */
+	else if (fpp + (fpp-1)->size == dp-NOBJECT_FIELDS /* adjacent */
+	         && (fpp-1)->size + (dp-1)->size + NOBJECT_FIELDS <= ICELLS) {
 		(fpp-1)->size += (dp-1)->size + NOBJECT_FIELDS;
 		fpp->next = dp->next;
 	} else			/* non-adjacent */
