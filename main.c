@@ -524,6 +524,7 @@ shell(s, toplevel)
 	Source *volatile s;		/* input source */
 	int volatile toplevel;
 {
+	Source *sold;
 	struct op *t;
 	volatile int wastty = s->flags & SF_TTY;
 	volatile int attempts = 13;
@@ -589,7 +590,9 @@ shell(s, toplevel)
 			set_prompt(PS1, s);
 		}
 
+		sold = source;
 		t = compile(s);
+		source = sold;
 		if (t != NULL && t->type == TEOF) {
 			if (wastty && Flag(FIGNOREEOF) && --attempts > 0) {
 				shellf("Use `exit' to leave ksh\n");
