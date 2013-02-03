@@ -232,8 +232,13 @@ my_overlayve(int flag, char *path, char **args, char **env)
   int rc, pid, fd = -1, prev_fd = -1, status;
 
   pid = spawnve(P_NOWAIT | flag, path, args, env);
-  if (pid <= 0)
+  if (pid <= 0) {
+    /* Remove delayed TMP files such as response files */
+    if (delayed_remove)
+      remove_temps(0);
+
     return -1;
+  }
   /* Close all the non-socket handles: closing sockets has severe side
      effects due to per-system semantic of sockets. */
   while (++fd <= prev_fd + CHECK_CONSECUTIVE_FDS) {
@@ -245,9 +250,13 @@ my_overlayve(int flag, char *path, char **args, char **env)
     if (!S_ISSOCK(buf.st_mode))
       close(fd);		/* Needed both for inheritable and others */
   }
+/* calling remove_temps() here causes a response file to be removed before
+ * passed to a child process */
+#if 0
   /* Remove the delayed TMP files which are open in the child */
   if (delayed_remove)
     remove_temps(0);
+#endif
   while ((rc = waitpid(pid, &status, 0)) < 0 && errno == EINTR)
     /* NOTHING */ ;
   /* Remove the remaining delayed TMP files */
@@ -297,6 +306,58 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
   if ( inDOS() ) {
     fprintf(stderr, "ksh_execve requires OS/2 or RSX!\n");
     exit(255);
+  }
+
+/* OS/2 can process a command line up to 32K. But set the maximum length
+ * to 16K for the safety */
+#define MAX_CMD_LINE_LEN 16384
+
+  {
+    char *rsp_args[3];
+    char  rsp_name_arg[] = "@pdksh-rsp-XXXXXX";
+    char *rsp_name = &rsp_name_arg[1];
+    int   arg_len = 0;
+    int   i;
+
+    for (i = 0; args[i]; i++)
+        arg_len += strlen (args[i]) + 1;
+
+    /* if a length of command line is longer than MAX_CMD_LINE_LEN, then use
+     * a response file. OS/2 cannot process a command line longer than 32K.
+     * Of course, a response file cannot be recognized by a normal OS/2
+     * program, that is, neither non-EMX or non-kLIBC. But it cannot accept
+     * a command line longer than 32K in itself. So using a response file
+     * in this case, is an acceptable solution */
+    if (arg_len > MAX_CMD_LINE_LEN) {
+      int    fd;
+      struct temp *t;
+
+      if ((fd = mkstemp (rsp_name)) == -1)
+        return -1;
+
+      /* write all the arguments except a 0th program name */
+      for (i = 1; args[ i ]; i++) {
+        write (fd, args[i], strlen (args[i]));
+        write (fd, "\n", 1);
+      }
+
+      close (fd);
+
+      /* Add a temporary response file to delayed_remove */
+      t = (struct temp *) alloc(sizeof(struct temp) + strlen(rsp_name) + 1,
+                                APERM);
+      memset(t, 0, sizeof(struct temp));
+      t->name = (char *) &t[1];
+      strcpy(t->name, rsp_name);
+      t->next = delayed_remove;
+      delayed_remove = t;
+
+      rsp_args[0] = args[0];
+      rsp_args[1] = rsp_name_arg;
+      rsp_args[2] = NULL;
+
+      args = rsp_args;
+    }
   }
 
   if ( DosQueryAppType(path, &apptype) == 0 )
