@@ -317,6 +317,7 @@ extern int dup2 ARGS((int, int));
 # define FILENCMP(s1, s2, n) strnicmp(s1, s2, n)
 extern char *ksh_strchr_dirsep(const char *path);
 extern char *ksh_strrchr_dirsep(const char *path);
+extern void  ksh_response(int *argcp, char ***argvp);
 # define chdir          _chdir2
 # define getcwd         _getcwd2
 #else
