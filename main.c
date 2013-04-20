@@ -78,6 +78,8 @@ static const char *const initcoms [] = {
 };
 
 #ifdef OS2
+#include <emx/startup.h>
+
 #define RPUT(x) \
     do \
     { \
@@ -102,7 +104,9 @@ static void my_response(int *argcp, char ***argvp)
     old_argc = *argcp; old_argv = *argvp;
     
     for (i = 1; i < old_argc; ++i)
-        if (old_argv[i] && old_argv[i][0] == '@')
+        if (old_argv[i] && 
+            !(old_argv[i][-1] & (_ARG_DQUOTE | _ARG_WILDCARD)) &&
+            old_argv[i][0] == '@')
             break;
     
     if (i >= old_argc)
@@ -111,7 +115,9 @@ static void my_response(int *argcp, char ***argvp)
     new_argv = NULL; new_argc = 0;
     for (i = 0; i < old_argc; ++i)
     {
-        if (i == 0 || !old_argv[i] || old_argv[i][0] != '@' ||
+        if (i == 0 || !old_argv[i] || 
+            (old_argv[i][-1] & (_ARG_DQUOTE | _ARG_WILDCARD)) ||
+            old_argv[i][0] != '@' ||
             !(f = fopen(old_argv[i] + 1, "rt")))
             RPUT(old_argv[i]);            
         else
@@ -122,13 +128,14 @@ static void my_response(int *argcp, char ***argvp)
             filesize = ftell(f);
             fseek(f, 0, SEEK_SET);
             
-            line = malloc(filesize);
+            line = malloc(filesize + 1);
             if (!line)
                 goto exit_out_of_memory;
                 
-            while (fgets(line, filesize, f))
+            line[0] = _ARG_NONZERO | _ARG_RESPONSE;
+            while (fgets(line + 1, filesize, f))
             {
-                p = strchr(line, '\n');
+                p = strchr(line + 1, '\n');
                 if (p)
                     *p = 0;
                     
@@ -136,7 +143,7 @@ static void my_response(int *argcp, char ***argvp)
                 if (!p)
                     goto exit_out_of_memory;
                     
-                RPUT(p);
+                RPUT(p + 1);
             }
             
             free(line);
