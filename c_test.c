@@ -248,6 +248,11 @@ test_eval(te, op, opnd1, opnd2, do_eval)
 	  case TO_FILAXST: /* -a */
 		return test_stat(opnd1, &b1) == 0;
 	  case TO_FILEXST: /* -e */
+		/* stat() on /dev/null on EMX fails. So process it specially */
+#ifdef OS2
+		if (strcmp(opnd1, "/dev/null") == 0)
+			return 1;
+#endif
 		/* at&t ksh does not appear to do the /dev/fd/ thing for
 		 * this (unless the os itself handles it)
 		 */
