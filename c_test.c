@@ -419,6 +419,13 @@ test_eval(te, op, opnd1, opnd2, do_eval)
 	return 1;
 }
 
+#ifdef OS2
+/* The executable suffix list copied from search_access() of exec.c */
+#define EXEC_SUFFIX_MAX_LEN	4
+static const char *exec_suffixes[] = {"", ".ksh", ".exe", ".sh",
+									  ".cmd", ".com", ".bat", NULL};
+#endif
+
 /* Nasty kludge to handle Korn's bizarre /dev/fd hack */
 static int
 test_stat(path, statb)
@@ -432,7 +439,34 @@ test_stat(path, statb)
 		return fstat(fd, statb);
 #endif /* !HAVE_DEV_FD */
 
+#ifdef OS2
+	{
+		const char **exec_suffix;
+		char *exec_path;
+		char *suffix;
+		int path_len;
+		int res = -1;
+
+		path_len = strlen(path);
+		exec_path = (char *)alloc(path_len + EXEC_SUFFIX_MAX_LEN + 1, ATEMP);
+		suffix = exec_path + path_len;
+
+		strcpy(exec_path, path);
+
+		for (exec_suffix = exec_suffixes; res < 0 && *exec_suffix;
+			 exec_suffix++) {
+			strcpy(suffix, *exec_suffix);
+
+			res = stat(exec_path, statb);
+		}
+
+		afree(exec_path, ATEMP);
+
+		return res;
+	}
+#else
 	return stat(path, statb);
+#endif
 }
 
 /* Routine to handle Korn's /dev/fd hack, and to deal with X_OK on
@@ -483,6 +517,30 @@ test_eaccess(path, mode)
 	} else
 #endif
 		res = eaccess(path, mode);
+
+#ifdef OS2
+	if (res < 0) {
+		const char **exec_suffix;
+		char *exec_path;
+		char *suffix;
+		int path_len;
+
+		path_len = strlen(path);
+		exec_path = (char *)alloc(path_len + EXEC_SUFFIX_MAX_LEN + 1, ATEMP);
+		suffix = exec_path + path_len;
+
+		strcpy(exec_path, path);
+
+		for (exec_suffix = exec_suffixes + 1; res < 0 && *exec_suffix;
+			 exec_suffix++) {
+			strcpy(suffix, *exec_suffix);
+
+			res = eaccess(exec_path, mode);
+		}
+
+		afree(exec_path, ATEMP);
+	}
+#endif
 
 	return res;
 }
