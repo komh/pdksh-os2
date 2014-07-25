@@ -473,7 +473,7 @@ void ksh_response(int *argcp, char ***argvp)
 {
     int i, old_argc, new_argc, new_alloc = 0;
     char **old_argv, **new_argv;
-    char *line, *p;
+    char *line, *l, *p;
     FILE *f;
 
     old_argc = *argcp; old_argv = *argvp;
@@ -508,17 +508,33 @@ void ksh_response(int *argcp, char ***argvp)
                 goto exit_out_of_memory;
                 
             line[0] = _ARG_NONZERO | _ARG_RESPONSE;
-            while (fgets(line + 1, filesize, f))
+            l = line + 1;
+            while (fgets(l, filesize - (l - line - 1), f))
             {
-                p = strchr(line + 1, '\n');
+                p = strchr(l, '\n');
                 if (p)
+                {
+                    /* if a line ends with '\',
+                     * then concatenate a next line
+                     */
+                    if (p > l && p[-1] == '\\' &&
+                        (p - l == 1 || p[-2] != '\\'))
+                    {
+                        l = p + 1;
+
+                        continue;
+                    }
+
                     *p = 0;
+                }
                     
                 p = strdup(line);
                 if (!p)
                     goto exit_out_of_memory;
                     
                 RPUT(p + 1);
+
+                l = line + 1;
             }
             
             free(line);
