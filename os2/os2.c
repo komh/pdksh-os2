@@ -517,12 +517,20 @@ void ksh_response(int *argcp, char ***argvp)
                     /* if a line ends with '\',
                      * then concatenate a next line
                      */
-                    if (p > l && p[-1] == '\\' &&
-                        (p - l == 1 || p[-2] != '\\'))
+                    if (p > l && p[-1] == '\\')
                     {
-                        l = p + 1;
+                        char *p1;
+                        int count = 0;
 
-                        continue;
+                        for (p1 = p - 1; p1 >= l && *p1 == '\\'; p1--)
+                            count++;
+
+                        if (count & 1)
+                        {
+                            l = p + 1;
+
+                            continue;
+                        }
                     }
 
                     *p = 0;
