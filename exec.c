@@ -835,6 +835,21 @@ scriptexec(tp, ap)
 			 shell = str_val(global("EXECSHELL"));
 			 if (shell && *shell)
 				 shell = search(shell, path, X_OK, (int *) 0);
+			 /* OS2_SHELL, which is CMD.EXE usually, can run only .cmd and
+			  * .bat. So in the case of the other scripts, use ksh to run them,
+			  * if EXECSHELL is not availble.
+			  */
+			 if (!shell || !*shell) {
+				 char *ext = strrchr(tp->str, '.');
+
+				 if (!ext || (stricmp(ext, ".cmd") && stricmp(ext, ".bat"))) {
+					 char self[PATH];
+
+					 _execname(self, sizeof(self));
+					 /* To allocate buffer */
+					 shell = search(self, path, X_OK, (int *) 0);
+				 }
+			 }
 			 if (!shell || !*shell) {
 				 shell = p;
 				 *tp->args-- = "/c";
