@@ -525,18 +525,20 @@ shell(s, toplevel)
 	Source *volatile s;		/* input source */
 	int volatile toplevel;
 {
-	Source *sold;
+	Source *volatile sold;
 	struct op *t;
 	volatile int wastty = s->flags & SF_TTY;
 	volatile int attempts = 13;
 	volatile int interactive = Flag(FTALKING) && toplevel;
 	int i;
 
+	sold = source;
 	newenv(E_PARSE);
 	if (interactive)
 		really_exit = 0;
 	i = ksh_sigsetjmp(e->jbuf, 0);
 	if (i) {
+		source = sold;
 		s->start = s->str = null;
 		switch (i) {
 		  case LINTR: /* we get here if SIGINT not caught or ignored */
@@ -591,9 +593,7 @@ shell(s, toplevel)
 			set_prompt(PS1, s);
 		}
 
-		sold = source;
 		t = compile(s);
-		source = sold;
 		if (t != NULL && t->type == TEOF) {
 			if (wastty && Flag(FIGNOREEOF) && --attempts > 0) {
 				shellf("Use `exit' to leave ksh\n");
@@ -623,6 +623,7 @@ shell(s, toplevel)
 
 		reclaim();
 	}
+	source = sold;
 	quitenv();
 	return exstat;
 }
