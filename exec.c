@@ -1399,8 +1399,11 @@ iosetup(iop, tp)
 		 * Ask savefd() not to close iop->unit - allows error messages
 		 * to be seen if iop->unit is 2; also means we can't lose
 		 * the fd (eg, both dup2 below and dup2 in restfd() failing).
+		 * u > 2 and u == iop->unit means that iop->unit has not been
+		 * allocated. Therefore, we don't have to save iop->unit.
 		 */
-		e->savefd[iop->unit] = savefd(iop->unit, 1);
+		e->savefd[iop->unit] =
+			u > 2 && u == iop->unit ? -1 : savefd(iop->unit, 1);
 
 	if (do_close)
 		close(iop->unit);
