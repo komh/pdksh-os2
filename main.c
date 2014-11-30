@@ -57,7 +57,9 @@ static const char *const initcoms [] = {
 # endif /* HISTORY */
 	  "integer=typeset -i",
 	  "nohup=nohup ",
+#endif /* KSH */
 	  "local=typeset",
+#ifdef KSH
 	  "r=fc -e -",
 #endif /* KSH */
 #ifdef KSH
