@@ -275,6 +275,14 @@ extern int dup2 ARGS((int, int));
 #endif
 
 #ifdef OS2
+# ifdef __KLIBC__
+/*  Bits for _emv_env
+ *  0x0020 : 386 coprocessor present
+ *  0x0200 : Running under OS/2
+ *  0x0800 : Data and stack executable
+ */
+#  define _emx_env ((unsigned)(0x0020 | 0x0200 | 0x0800))
+# endif
 # define inDOS() (!(_emx_env & 0x200))
 #endif
 

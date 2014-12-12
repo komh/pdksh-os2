@@ -264,6 +264,9 @@
 
 /* Define if you have the strcasecmp function.  */
 /* #undef HAVE_STRCASECMP */
+#ifdef __KLIBC__
+# define HAVE_STRCASECMP 1
+#endif
 
 /* Define if you have the strerror function.  */
 #define HAVE_STRERROR 1

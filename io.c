@@ -300,6 +300,10 @@ savefd(fd, noclose)
 		if (nfd < 0)
 			if (errno == EBADF)
 				return -1;
+#ifdef __KLIBC__
+			else if (errno == EPERM)
+				return -1;
+#endif
 			else
 				errorf("too many files open in shell");
 		if (!noclose)

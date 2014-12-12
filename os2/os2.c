@@ -3,6 +3,7 @@
 #define INCL_DOSSESMGR
 #define INCL_WINPROGRAMLIST
 #define INCL_WINFRAMEMGR
+#define INCL_WINSWITCHLIST
 #include <os2.h>
 #include "config.h"
 #include "sh.h"				/* To get inDOS(). */
@@ -453,7 +454,18 @@ char *ksh_strrchr_dirsep(const char *path)
   return (p1 > p2) ? p1 : p2;
 }
 
+#ifndef __KLIBC__
 #include <emx/startup.h>
+
+#define KSH_ARG_RESPONSE_EXCLUDE (_ARG_DQUOTE | _ARG_WILDCARD)
+#define KSH_ARG_RESPONSE         (_ARG_NONZERO | _ARG_RESPONSE)
+#else
+#include <klibc/startup.h>
+
+#define KSH_ARG_RESPONSE_EXCLUDE (__KLIBC_ARG_DQUOTE | \
+                                  __KLIBC_ARG_WILDCARD | __KLIBC_ARG_SHELL)
+#define KSH_ARG_RESPONSE         (__KLIBC_ARG_NONZERO | __KLIBC_ARG_RESPONSE)
+#endif
 
 #define RPUT(x) \
     do \
@@ -480,7 +492,7 @@ void ksh_response(int *argcp, char ***argvp)
     
     for (i = 1; i < old_argc; ++i)
         if (old_argv[i] && 
-            !(old_argv[i][-1] & (_ARG_DQUOTE | _ARG_WILDCARD)) &&
+            !(old_argv[i][-1] & KSH_ARG_RESPONSE_EXCLUDE) &&
             old_argv[i][0] == '@')
             break;
     
@@ -491,7 +503,7 @@ void ksh_response(int *argcp, char ***argvp)
     for (i = 0; i < old_argc; ++i)
     {
         if (i == 0 || !old_argv[i] || 
-            (old_argv[i][-1] & (_ARG_DQUOTE | _ARG_WILDCARD)) ||
+            (old_argv[i][-1] & KSH_ARG_RESPONSE_EXCLUDE) ||
             old_argv[i][0] != '@' ||
             !(f = fopen(old_argv[i] + 1, "rt")))
             RPUT(old_argv[i]);            
@@ -507,7 +519,7 @@ void ksh_response(int *argcp, char ***argvp)
             if (!line)
                 goto exit_out_of_memory;
                 
-            line[0] = _ARG_NONZERO | _ARG_RESPONSE;
+            line[0] = KSH_ARG_RESPONSE;
             l = line + 1;
             while (fgets(l, filesize - (l - line - 1), f))
             {
@@ -567,3 +579,94 @@ exit_out_of_memory:
     exit(255);
 }
 
+#ifdef __KLIBC__
+/* Remove trailing dots */
+static char *remove_trailing_dots(char *name)
+{
+    char *p;
+
+    for (p = name + strlen(name); --p > name && *p == '.'; )
+        /* nothing */;
+
+    if (*p != '.' && !ISDIRSEP(*p) && *p != ':')
+        p[1] = '\0';
+
+    return name;
+}
+
+#define REMOVE_TRAILING_DOTS(name) \
+    remove_trailing_dots(strcpy(alloca(strlen(name) + 1), name))
+
+/* Replacement for stat() of kLIBC which fails
+   if there are trailing dots. */
+int stat(const char *name, struct stat *buffer)
+{
+    return _std_stat(REMOVE_TRAILING_DOTS(name), buffer);
+}
+
+/* Replacement for access() of kLIBC which fails
+   if there are trailing dots. */
+int access(const char *name, int mode)
+{
+    return _std_access(REMOVE_TRAILING_DOTS(name), mode);
+}
+
+/* Replacement for spawnve() of kLIBC. */
+int spawnve(int mode, const char *name, char * const *argv, char * const *envp)
+{
+    char path[_MAX_PATH];
+    FILE *fp;
+    char sign[2];
+    int saved_stdin_mode;
+    int saved_stdout_mode;
+    int saved_stderr_mode;
+    int rc;
+
+    /* Mimic spawnvpe() as EMX spawnve() does. This is required for
+       sharpbang or extproc cases, which pass only an interpreter name. */
+    if (_path2(REMOVE_TRAILING_DOTS(name), ".exe", path, sizeof(path)))
+        return -1;
+
+    /* kLIBC spawnve() has problems when executing scripts.
+       1. it fails to execute a script if a directory whose name
+       is same as an interpreter exists in a current directory.
+       2. it fails to execute a script not starting with sharpbang.
+       3. it fails to execute a batch file if COMSPEC is set to a shell
+       incompatible with cmd.exe, such as /bin/sh.
+       And ksh process scripts more well, so let ksh process scripts. */
+    errno = 0;
+    if (!(fp = fopen(path, "rb")))
+        errno = ENOEXEC;
+
+    if (!errno && fread(sign, 1, sizeof(sign), fp) != sizeof(sign))
+        errno = ENOEXEC;
+
+    if (fp && fclose(fp))
+        errno = ENOEXEC;
+
+    if (!errno &&
+        !((sign[0] == 'M' && sign[1] == 'Z') ||
+          (sign[0] == 'N' && sign[1] == 'E') ||
+          (sign[0] == 'L' && sign[1] == 'X')))
+        errno = ENOEXEC;
+
+    if (errno == ENOEXEC)
+        return -1;
+
+    /* On kLIBC, a child inherits a translation mode of stdin/stdout/stderr
+       of a parent, but on EMX does not.
+       Set stdin/stdout/stderr to a text mode, which is default. */
+    saved_stdin_mode = setmode(fileno(stdin), O_TEXT);
+    saved_stdout_mode = setmode(fileno(stdout), O_TEXT);
+    saved_stdout_mode = setmode(fileno(stderr), O_TEXT);
+
+    rc = _std_spawnve(mode, path, argv, envp);
+
+    /* Restore a translation mode of stdin/stdout/stderr */
+    setmode(fileno(stdin), saved_stdin_mode);
+    setmode(fileno(stdout), saved_stdout_mode);
+    setmode(fileno(stderr), saved_stderr_mode);
+
+    return rc;
+}
+#endif
