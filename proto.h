@@ -205,6 +205,10 @@ char	*str_zcpy	ARGS((char *dst, const char *src, int dsize));
 int	blocking_read	ARGS((int fd, char *buf, int nbytes));
 int	reset_nonblock	ARGS((int fd));
 char	*ksh_get_wd	ARGS((char *buf, int bsize));
+#ifdef OS2
+/* os2.c */
+void	os2_init(int *argcp, char ***argvp);
+#endif
 /* path.c */
 int	make_path	ARGS((const char *cwd, const char *file,
 			      char **pathlist, XString *xsp, int *phys_pathp));

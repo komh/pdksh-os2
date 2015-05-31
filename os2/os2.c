@@ -480,8 +480,9 @@ char *ksh_strrchr_dirsep(const char *path)
         } \
         new_argv[new_argc++] = x; \
     } while (0)
-            
-void ksh_response(int *argcp, char ***argvp)
+
+static void
+ksh_response(int *argcp, char ***argvp)
 {
     int i, old_argc, new_argc, new_alloc = 0;
     char **old_argv, **new_argv;
@@ -577,6 +578,37 @@ void ksh_response(int *argcp, char ***argvp)
 exit_out_of_memory:
     fputs("Out of memory while reading response file\n", stderr);
     exit(255);
+}
+
+/* Convert backslashes of environmental variables to forward slahes.
+   A backslash may be used as an escaped character when do 'echo'. This leads
+   to an unexpected behavior. */
+static void
+env_slashify(void)
+{
+    /* PATH and TMPDIR are used by OS/2 as well. That is, they may have
+       backslashes as a directory separator. */
+    const char *var_list[] = {"PATH", "TMPDIR", NULL};
+    const char **var;
+    char *value;
+
+    for (var = var_list; *var; var++)
+    {
+        value = getenv(*var);
+
+        if (value)
+            _fnslashify(value);
+    }
+}
+
+void os2_init(int *argcp, char ***argvp)
+{
+    setmode (0, O_BINARY);
+    setmode (1, O_TEXT);
+
+    ksh_response (argcp, argvp);
+
+    env_slashify();
 }
 
 #ifdef __KLIBC__

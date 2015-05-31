@@ -99,9 +99,7 @@ main(argc, argv)
 #endif /* MEM_DEBUG */
 
 #ifdef OS2
-	setmode (0, O_BINARY);
-	setmode (1, O_TEXT);
-	ksh_response (&argc, &argv);
+	os2_init (&argc, &argv);
 #endif
 
 	/* make sure argv[] is sane */
