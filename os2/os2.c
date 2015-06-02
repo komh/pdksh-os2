@@ -580,6 +580,41 @@ exit_out_of_memory:
     exit(255);
 }
 
+#ifndef __KLIBC__
+static int
+setenv(const char *name, const char *value, int overwrite)
+{
+    char *envstr;
+
+    if (getenv(name) && !overwrite)
+        return 0;
+
+    /* allocate for x=y */
+    envstr = malloc(strlen(name) + strlen(value) + 1 + 1);
+    if (!envstr)
+        return -1;
+
+    sprintf(envstr, "%s=%s", name, value);
+
+    return putenv(envstr);
+}
+#endif
+
+static void
+init_extlibpath(void)
+{
+    const char *envs[] = {"BEGINLIBPATH", "ENDLIBPATH", "LIBPATHSTRICT", NULL};
+    char val[512];
+    int flag;
+
+    for (flag = 0; envs[flag]; flag++)
+    {
+        DosQueryExtLIBPATH(val, flag + 1);
+        if (val[0])
+            setenv(envs[flag], val, 1);
+    }    
+}
+
 /* Convert backslashes of environmental variables to forward slahes.
    A backslash may be used as an escaped character when do 'echo'. This leads
    to an unexpected behavior. */
@@ -608,9 +643,30 @@ void os2_init(int *argcp, char ***argvp)
 
     ksh_response (argcp, argvp);
 
+    init_extlibpath();
     env_slashify();
 }
 
+#ifndef LIBPATHSTRICT
+#define LIBPATHSTRICT   3
+#endif
+
+void setextlibpath(const char *name, const char *val)
+{
+    int flag;
+
+    if (!strcmp(name, "BEGINLIBPATH"))
+        flag = BEGIN_LIBPATH;
+    else if (!strcmp(name, "ENDLIBPATH"))
+        flag = END_LIBPATH;
+    else if (!strcmp(name, "LIBPATHSTRICT"))
+        flag = LIBPATHSTRICT;
+    else
+        return;
+
+    DosSetExtLIBPATH(val, flag);
+}
+ 
 #ifdef __KLIBC__
 /* Remove trailing dots */
 static char *remove_trailing_dots(char *name)

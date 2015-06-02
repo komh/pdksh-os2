@@ -208,6 +208,7 @@ char	*ksh_get_wd	ARGS((char *buf, int bsize));
 #ifdef OS2
 /* os2.c */
 void	os2_init(int *argcp, char ***argvp);
+void	setextlibpath(const char *name, const char *val);
 #endif
 /* path.c */
 int	make_path	ARGS((const char *cwd, const char *file,

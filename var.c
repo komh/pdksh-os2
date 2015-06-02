@@ -567,6 +567,11 @@ export(vp, val)
 	int namelen = strlen(vp->name);
 	int vallen = strlen(val) + 1;
 
+#ifdef OS2
+	/* On OS/2, BEGIN/ENDLIBPATH and LIBPATHSTRICT are special variables. */
+	setextlibpath(vp->name, val);
+#endif
+
 	vp->flag |= ALLOC;
 	xp = (char*)alloc(namelen + 1 + vallen, vp->areap);
 	memcpy(vp->val.s = xp, vp->name, namelen);
@@ -742,6 +747,11 @@ unset(vp, array_ref)
 	register struct tbl *vp;
 	int array_ref;
 {
+#ifdef OS2
+	/* On OS/2, BEGIN/ENDLIBPATH and LIBPATHSTRICT are special variables. */
+	setextlibpath(vp->name, "");
+#endif
+
 	if (vp->flag & ALLOC)
 		afree((void*)vp->val.s, vp->areap);
 	if ((vp->flag & ARRAY) && !array_ref) {
