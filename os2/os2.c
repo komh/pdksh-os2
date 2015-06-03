@@ -50,7 +50,7 @@ quoted_strcpy(char *targ, char* src)
 {
     int seen_space = 0;
     char *s = src, *t = targ;
-    
+
     while (*s) {
 	if ((*s == ' ') || (*s == '\"')) {
 	    seen_space = 1;
@@ -64,7 +64,7 @@ quoted_strcpy(char *targ, char* src)
     while (*src) {
 	if (*src == '\"') {
 	    *targ++ = '\\';
-	} 
+	}
 	*targ++ = *src++;
     }
     if (seen_space) {
@@ -74,7 +74,7 @@ quoted_strcpy(char *targ, char* src)
     return t;
 }
 
-static int 
+static int
 newsession(int type, int mode, char *cmd, char **args, char **env)
 {
   STARTDATA sd;
@@ -149,7 +149,7 @@ newsession(int type, int mode, char *cmd, char **args, char **env)
     ULONG old_visibility;
     ULONG old_size = SWP_MINIMIZE;	/* By default, do nothing */
 
-    /* Setting EXEC_PM_BOND=0 disables the bond between pdksh and 
+    /* Setting EXEC_PM_BOND=0 disables the bond between pdksh and
        a PM application.  When the bond is active, chosing the pdksh window
        from the switch list (say, after Control-Esc) will actually choose the
        PM application. */
@@ -366,7 +366,7 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
 
     if (apptype & FAPPTYP_DOS)
       return newsession(isfullscreen() ? SSF_TYPE_VDM :
-                                         SSF_TYPE_WINDOWEDVDM, 
+                                         SSF_TYPE_WINDOWEDVDM,
 			P_WAIT, path, args, env);
 
     if ((apptype & FAPPTYP_WINDOWSREAL) ||
@@ -416,7 +416,7 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
 	      }
 	  }
       }
-      
+
       /* Work around EMX "optimization": unless exec-after-fork(),
 	 our parent would get exit code 0 immediately on exec(). */
       if (!(flags & XFORKEXEC) || delayed_remove)	/* Returns on error only */
@@ -490,36 +490,36 @@ ksh_response(int *argcp, char ***argvp)
     FILE *f;
 
     old_argc = *argcp; old_argv = *argvp;
-    
+
     for (i = 1; i < old_argc; ++i)
-        if (old_argv[i] && 
+        if (old_argv[i] &&
             !(old_argv[i][-1] & KSH_ARG_RESPONSE_EXCLUDE) &&
             old_argv[i][0] == '@')
             break;
-    
+
     if (i >= old_argc)
         return;                     /* do nothing */
-        
+
     new_argv = NULL; new_argc = 0;
     for (i = 0; i < old_argc; ++i)
     {
-        if (i == 0 || !old_argv[i] || 
+        if (i == 0 || !old_argv[i] ||
             (old_argv[i][-1] & KSH_ARG_RESPONSE_EXCLUDE) ||
             old_argv[i][0] != '@' ||
             !(f = fopen(old_argv[i] + 1, "rt")))
-            RPUT(old_argv[i]);            
+            RPUT(old_argv[i]);
         else
         {
             long filesize;
-            
+
             fseek(f, 0, SEEK_END);
             filesize = ftell(f);
             fseek(f, 0, SEEK_SET);
-            
+
             line = malloc(filesize + 1);
             if (!line)
                 goto exit_out_of_memory;
-                
+
             line[0] = KSH_ARG_RESPONSE;
             l = line + 1;
             while (fgets(l, filesize - (l - line - 1), f))
@@ -548,33 +548,33 @@ ksh_response(int *argcp, char ***argvp)
 
                     *p = 0;
                 }
-                    
+
                 p = strdup(line);
                 if (!p)
                     goto exit_out_of_memory;
-                    
+
                 RPUT(p + 1);
 
                 l = line + 1;
             }
-            
+
             free(line);
-            
+
             if (ferror(f))
             {
                 fputs("Cannot read response file\n", stderr);
                 exit(255);
             }
-            
+
             fclose(f);
         }
     }
-    
+
     RPUT(NULL); --new_argc;
-    
+
     *argcp = new_argc; *argvp = new_argv;
     return;
-    
+
 exit_out_of_memory:
     fputs("Out of memory while reading response file\n", stderr);
     exit(255);
@@ -612,7 +612,7 @@ init_extlibpath(void)
         DosQueryExtLIBPATH(val, flag + 1);
         if (val[0])
             setenv(envs[flag], val, 1);
-    }    
+    }
 }
 
 /* Convert backslashes of environmental variables to forward slahes.
@@ -680,7 +680,7 @@ void setextlibpath(const char *name, const char *val)
 
     afree((char *)val, ATEMP);
 }
- 
+
 #ifdef __KLIBC__
 /* Remove trailing dots */
 static char *remove_trailing_dots(char *name)
