@@ -622,8 +622,10 @@ static void
 env_slashify(void)
 {
     /* PATH and TMPDIR are used by OS/2 as well. That is, they may have
-       backslashes as a directory separator. */
-    const char *var_list[] = {"PATH", "TMPDIR", NULL};
+       backslashes as a directory separator.
+       BEGINLIBPATH and ENDLIBPATH are special variables on OS/2. */
+    const char *var_list[] = {"PATH", "TMPDIR",
+                              "BEGINLIBPATH", "ENDLIBPATH", NULL};
     const char **var;
     char *value;
 
@@ -654,6 +656,7 @@ void os2_init(int *argcp, char ***argvp)
 void setextlibpath(const char *name, const char *val)
 {
     int flag;
+    char *p;
 
     if (!strcmp(name, "BEGINLIBPATH"))
         flag = BEGIN_LIBPATH;
@@ -664,7 +667,18 @@ void setextlibpath(const char *name, const char *val)
     else
         return;
 
+    /* Convert slashes to backslashes */
+    p = alloc(strlen(val) + 1, ATEMP);
+    strcpy(p, val);
+    for (val = p; *p; p++)
+    {
+        if (*p == '/')
+            *p = '\\';
+    }
+
     DosSetExtLIBPATH(val, flag);
+
+    afree((char *)val, ATEMP);
 }
  
 #ifdef __KLIBC__
