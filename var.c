@@ -881,6 +881,13 @@ makenv()
 					/* setstr can't fail here */
 					setstr(vp, val, KSH_RETURN_ERROR);
 				}
+#ifdef OS2
+				/* On OS/2, BEGINLIBPATH, ENDLIBPATH and LIBPATHSTRICT are
+				   special variables, and are not inherited. */
+				if (strcmp(vp->name, "BEGINLIBPATH")
+				    && strcmp(vp->name, "ENDLIBPATH")
+				    && strcmp(vp->name, "LIBPATHSTRICT"))
+#endif
 				XPput(env, vp->val.s);
 			}
 	XPput(env, NULL);
