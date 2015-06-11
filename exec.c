@@ -826,8 +826,14 @@ scriptexec(tp, ap)
 						char *tmp_a0 = str_nsave(a0,
 							strlen(a0) + 5, ATEMP);
 						if (search_access(tmp_a0, X_OK,
-								(int *) 0))
-						    a0 = a2;
+								(int *) 0)) {
+							char *tmp_a2 = str_nsave(a2, strlen(a2) + 5,
+							                         ATEMP);
+							a2 = search(tmp_a2, path, X_OK, (int *) 0);
+							if (a2)
+								a0 = a2;
+							afree(tmp_a2, ATEMP);
+						}
 						afree(tmp_a0, ATEMP);
 					}
 # endif /* OS2 */
