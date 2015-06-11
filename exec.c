@@ -1148,10 +1148,10 @@ search_access(path, mode, errnop)
 	 *	 Certain code knows this (eg, eval.c(globit()),
 	 *	 exec.c(search())).
 	 */
-	static char *xsuffixes[] = { ".ksh", ".exe", ".", ".sh", ".cmd",
+	static char *xsuffixes[] = { "", ".ksh", ".exe", ".sh", ".cmd",
 				     ".com", ".bat", (char *) 0
 				   };
-	static char *rsuffixes[] = { ".ksh", ".", ".sh", ".cmd", ".bat",
+	static char *rsuffixes[] = { "", ".ksh", ".sh", ".cmd", ".bat",
 				      (char *) 0
 				   };
 	int i;
@@ -1159,17 +1159,7 @@ search_access(path, mode, errnop)
 	char *tp = mpath + strlen(mpath);
 	char *p;
 	char **sfx;
- 
-	/* If a suffix has been specified, check if it is one of the
-	 * suffixes that indicate the file is executable - if so, change
-	 * the access test to R_OK...
-	 * This code assumes OS/2 files can have only one suffix...
-	 */
-	if ((p = strrchr((p = ksh_strrchr_dirsep(mpath)) ? p : mpath, '.'))) {
-		if (mode == X_OK) 
-			mode = R_OK;
-		return search_access1(mpath, mode, errnop);
-	}
+
 	/* Try appending the various suffixes.  Different suffixes for
 	 * read and execute 'cause we don't want to read an executable...
 	 */
