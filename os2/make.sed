@@ -23,22 +23,22 @@ s#$(srcdir)/tests/th.sh#th.cmd#
 /^config.h.in:/,/^$/d
 /^config.h:/,/^$/c\
 config.h:\
-	cmd /c copy $(srcdir)\\os2\\config.h config.h > nul\
+	cmd /c copy $(srcdir)\\\\os2\\\\config.h config.h > nul\
 	touch config.h\
 
 /^Makefile:/,/^$/c\
 Makefile:\
-	cmd /c copy $(srcdir)\\os2\\Makefile Makefile > nul\
+	cmd /c copy $(srcdir)\\\\os2\\\\Makefile Makefile > nul\
 	touch Makefile\
 
 /^config.status:/,/^$/d
 /^siglist.out:/,/^$/c\
 siglist.out:\
-	cmd /c copy $(srcdir)\\os2\\os2siglist.out siglist.out > nul\
+	cmd /c copy $(srcdir)\\\\os2\\\\os2siglist.out siglist.out > nul\
 	touch siglist.out\
 
 /^emacs.out:/,/^$/c\
 emacs.out:\
-	cmd /c copy $(srcdir)\\os2\\emacs.out emacs.out > nul\
+	cmd /c copy $(srcdir)\\\\os2\\\\emacs.out emacs.out > nul\
 	touch emacs.out\
 
