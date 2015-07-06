@@ -289,6 +289,19 @@ x_mode(onoff)
 			edchars.eof = '\4';
 #endif /* __CYGWIN__ */
 
+#ifdef __KLIBC__
+		if (edchars.erase == 0)
+			edchars.erase = 8;
+		if (edchars.kill == 0)
+		    edchars.kill = 21;
+		if (edchars.intr == 0)
+		    edchars.intr = 3;
+		if (edchars.quit == 0)
+		    edchars.quit = 28;
+		if (edchars.eof == 0)
+		    edchars.eof = 4;
+#endif
+
 		/* Convert unset values to internal `unset' value */
 		if (edchars.erase == vdisable_c)
 			edchars.erase = -1;
