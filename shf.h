@@ -39,11 +39,6 @@
 #define SHF_EOF		0x1000		/* read eof (sticky) */
 #define SHF_READING	0x2000		/* currently reading: rnleft,rp valid */
 #define SHF_WRITING	0x4000		/* currently writing: wnleft,wp valid */
-#  ifdef OS2
-#    define SHF_WASTEXT	0x8000		/* File was text-mode. */
-#  else
-#    define SHF_WASTEXT	0
-#  endif
 
 
 struct shf {

@@ -130,7 +130,7 @@ shf_reopen(fd, sflags, shf)
 	int bsize = sflags & SHF_UNBUF ? (sflags & SHF_RD ? 1 : 0) : SHF_BSIZE;
 
 	/* use fcntl() to figure out correct read/write flags */
-	if ((sflags & SHF_GETFL) || SHF_WASTEXT) {
+	if ((sflags & SHF_GETFL)) {
 		int flags = fcntl(fd, F_GETFL, 0);
 
 		if (!(sflags & SHF_GETFL)) ; /* Do nothing */
@@ -143,10 +143,6 @@ shf_reopen(fd, sflags, shf)
 			case O_WRONLY: sflags |= SHF_WR; break;
 			case O_RDWR: sflags |= SHF_RDWR; break;
 			}
-#if SHF_WASTEXT
-		if (!(flags & O_BINARY) && (sflags & SHF_RD))
-		    sflags |= SHF_WASTEXT;
-#endif
 	}
 
 	if (!(sflags & (SHF_RD | SHF_WR)))
@@ -321,10 +317,6 @@ shf_flush(shf)
 		ret = shf_emptybuf(shf, 0);
 
   end:
-#if SHF_WASTEXT	/* Be extra safe: set binary mode on fill, unset on flush */
-	if (shf->flags & SHF_WASTEXT)
-	    setmode(shf->fd, O_TEXT);
-#endif
 	return ret;
 }
 
@@ -435,10 +427,6 @@ shf_fillbuf(shf)
 	shf->flags |= SHF_READING;
 
 	shf->rp = shf->buf;
-#if SHF_WASTEXT	/* Be extra safe: set binary mode on fill, unset on flush */
-	if (shf->flags & SHF_WASTEXT)
-	    setmode(shf->fd, O_BINARY);
-#endif
 	while (1) {
 		shf->rnleft = blocking_read(shf->fd, (char *) shf->buf,
 					    shf->rbsize);
@@ -585,19 +573,6 @@ shf_getse(buf, bsize, shf)
 		shf->rnleft -= ncopy;
 		buf += ncopy;
 		bsize -= ncopy;
-#ifdef OS2
-		if (shf->rnleft > 0 && *shf->rp == '\n' && buf[-1] == '\r') {
-			buf[-1] = '\n';
-			shf->rp++;
-			shf->rnleft--;
-		}
-
-		if (end && buf > orig_buf + 1 && buf[-2] == '\r') {
-			buf--;
-			bsize++;
-			buf[-1] = '\n';
-		}
-#endif
 
 	} while (!end && bsize);
 	*buf = '\0';

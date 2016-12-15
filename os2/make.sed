@@ -11,8 +11,8 @@ s/@INSTALL_DATA@/$(INSTALL) -m 644/
 s/@DEFS@/-DHAVE_CONFIG_H/
 s/@LIBS@/-los2/
 s/@LDSTATIC@//
-s/@LDFLAGS@/-O -s $(LDSTATIC)/
-s/^\(CFLAGS[	 ]*=\).*/\1 -O -DOS2/
+s/@LDFLAGS@/-Zmt -O -s $(LDSTATIC)/
+s/^\(CFLAGS[	 ]*=\).*/\1 -Zmt -D__ST_MT_ERRNO__ -O -DOS2/
 s/^\(prefix[	 ]*=\).*/\1 c:\/usr/
 s/^\(exec_prefix[	 ]*=\).*/\1 c:\/usr/
 s/^\(exe_suffix[	 ]*=\).*/\1.exe/

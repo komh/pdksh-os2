@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdlib.h>
 
 static int isfullscreen(void)
 {
@@ -220,6 +221,31 @@ newsession(int type, int mode, char *cmd, char **args, char **env)
     exit(0);
 }
 
+#ifndef __KLIBC__
+#define USE_PIPE_FILTER 1
+#endif
+
+#if USE_PIPE_FILTER
+
+void filter_thread(void *arg)
+{
+  int *fds = (int *)arg; /* fds[0] for read, fds[1] for write */
+  char buf[128];
+  int len;
+
+  while ((len = read(fds[0], buf, sizeof(buf))) > 0) {
+    if (write(fds[1], buf, len) < len)
+      break;
+  }
+
+  close(fds[1]);
+  close(fds[0]);
+
+  afree(fds, ATEMP);
+}
+
+#endif
+
 #define CHECK_CONSECUTIVE_FDS	40	/* Hack to enumerate open fds */
 
 /* EMX's execve()/spawnve(P_OVERLAY) are not waiting for the kid
@@ -231,12 +257,42 @@ static int
 my_overlayve(int flag, char *path, char **args, char **env)
 {
   int rc, pid, fd = -1, prev_fd = -1, status;
+#if USE_PIPE_FILTER
+  int saved_fds[] = {-1, -1, -1};
+  int stdio_fds[] = {fileno(stdin), fileno(stdout), fileno(stderr)};
+  int stdio_phs[][2] = {{-1, -1}, {-1, -1}, {-1, -1}};
+  int i;
+  TID filter_tids[] = {-1, -1, -1};
+
+  /* Install pipe filter */
+  for (i = 0; i < 3; i++) {
+    if (!isatty(stdio_fds[i])) {
+      saved_fds[i] = dup(stdio_fds[i]);
+      openpipe(stdio_phs[i]);
+      dup2(stdio_phs[i][!!i], stdio_fds[i]);
+      close(stdio_phs[i][!!i]);
+      fcntl(saved_fds[i], F_SETFD, FD_CLOEXEC);
+      fcntl(stdio_phs[i][!i], F_SETFD, FD_CLOEXEC);
+    }
+  }
+#endif
 
   pid = spawnve(P_NOWAIT | flag, path, args, env);
   if (pid <= 0) {
     /* Remove delayed TMP files such as response files */
     if (delayed_remove)
       remove_temps(0);
+
+#if USE_PIPE_FILTER
+    /* Remove pipe filter */
+    for (i = 0; i < 3; i++) {
+      if (saved_fds[i] != -1) {
+        close(stdio_phs[i][!i]);
+        dup2(saved_fds[i], stdio_fds[i]);
+        close(saved_fds[i]);
+      }
+    }
+#endif
 
     return -1;
   }
@@ -245,12 +301,38 @@ my_overlayve(int flag, char *path, char **args, char **env)
   while (++fd <= prev_fd + CHECK_CONSECUTIVE_FDS) {
     struct stat buf;
 
+#if USE_PIPE_FILTER
+    /* Skip fds for pipe filter */
+    if (fd == saved_fds[0] || fd == saved_fds[1] || fd == saved_fds[2] ||
+        fd == stdio_phs[0][1] || fd == stdio_phs[1][0] ||
+        fd == stdio_phs[2][0])
+      continue;
+#endif
     if (fstat(fd, &buf) < 0)
       continue;			/* Not an open filehandle */
     prev_fd = fd;
     if (!S_ISSOCK(buf.st_mode))
       close(fd);		/* Needed both for inheritable and others */
   }
+
+#if USE_PIPE_FILTER
+  for (i = 0; i < 3; i++) {
+    if (saved_fds[i] != -1) {
+      int *fds = alloc(sizeof(int) * 2, ATEMP);
+      fds[0] = i > 0 ? stdio_phs[i][0] : saved_fds[0];
+      fds[1] = i > 0 ? saved_fds[i] : stdio_phs[0][1];
+      filter_tids[i] = _beginthread(filter_thread, NULL, 1024 * 1024, fds);
+    }
+  }
+
+  for (i = 0; i < 3; i++) {
+    if (filter_tids[i] != -1) {
+      while (DosWaitThread(&filter_tids[i], DCWW_WAIT) == ERROR_INTERRUPT)
+        /* nothing*/;
+    }
+  }
+#endif
+
 /* calling remove_temps() here causes a response file to be removed before
  * passed to a child process */
 #if 0
@@ -417,13 +499,7 @@ int ksh_execve(char *cmd, char **args, char **env, int flags)
 	  }
       }
 
-      /* Work around EMX "optimization": unless exec-after-fork(),
-	 our parent would get exit code 0 immediately on exec(). */
-      if (!(flags & XFORKEXEC) || delayed_remove)	/* Returns on error only */
-	return(my_overlayve(do_quote, path, args, env));
-      rc = spawnve(P_OVERLAY | do_quote, path, args, env);
-      if ( rc != -1 )
-	  exit(rc);
+      my_overlayve(do_quote, path, args, env); /* Returns on error only */
   }
   return -1;
 }
@@ -638,10 +714,14 @@ env_slashify(void)
     }
 }
 
+extern int _fmode_bin;
+
 void os2_init(int *argcp, char ***argvp)
 {
-    setmode (0, O_BINARY);
-    setmode (1, O_TEXT);
+    setmode (0, O_TEXT);
+    if (!isatty (1))
+        setmode (1, O_BINARY);
+    _fmode_bin = 1;
 
     ksh_response (argcp, argvp);
 
@@ -719,9 +799,6 @@ int spawnve(int mode, const char *name, char * const *argv, char * const *envp)
     char path[_MAX_PATH];
     FILE *fp;
     char sign[2];
-    int saved_stdin_mode;
-    int saved_stdout_mode;
-    int saved_stderr_mode;
     int rc;
 
     /* Mimic spawnvpe() as EMX spawnve() does. This is required for
@@ -755,19 +832,7 @@ int spawnve(int mode, const char *name, char * const *argv, char * const *envp)
     if (errno == ENOEXEC)
         return -1;
 
-    /* On kLIBC, a child inherits a translation mode of stdin/stdout/stderr
-       of a parent, but on EMX does not.
-       Set stdin/stdout/stderr to a text mode, which is default. */
-    saved_stdin_mode = setmode(fileno(stdin), O_TEXT);
-    saved_stdout_mode = setmode(fileno(stdout), O_TEXT);
-    saved_stdout_mode = setmode(fileno(stderr), O_TEXT);
-
     rc = _std_spawnve(mode, path, argv, envp);
-
-    /* Restore a translation mode of stdin/stdout/stderr */
-    setmode(fileno(stdin), saved_stdin_mode);
-    setmode(fileno(stdout), saved_stdout_mode);
-    setmode(fileno(stderr), saved_stderr_mode);
 
     return rc;
 }

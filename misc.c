@@ -1200,6 +1200,10 @@ blocking_read(fd, buf, nbytes)
 	int ret;
 	int tried_reset = 0;
 
+#ifdef OS2
+	int saved_mode = setmode(fd, O_TEXT);
+	int saved_errno;
+#endif
 	while ((ret = read(fd, buf, nbytes)) < 0) {
 		if (!tried_reset && (errno == EAGAIN
 #ifdef EWOULDBLOCK
@@ -1216,6 +1220,11 @@ blocking_read(fd, buf, nbytes)
 		}
 		break;
 	}
+#ifdef OS2
+	saved_errno = errno;
+	setmode(fd, saved_mode);
+	errno = saved_errno;
+#endif
 	return ret;
 }
 

@@ -772,6 +772,9 @@ scriptexec(tp, ap)
 
 		buf[0] = '\0';
 		if ((fd = open(tp->str, O_RDONLY)) >= 0) {
+# ifdef OS2
+			setmode(fd, O_TEXT);
+# endif
 			if ((n = read(fd, buf, LINE - 1)) > 0)
 				buf[n] = '\0';
 			(void) close(fd);

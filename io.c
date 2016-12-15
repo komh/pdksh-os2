@@ -336,6 +336,10 @@ openpipe(pv)
 		errorf("can't create pipe - try again");
 	pv[0] = savefd(pv[0], 0);
 	pv[1] = savefd(pv[1], 0);
+#ifdef OS2
+	setmode(pv[0], O_TEXT);
+	setmode(pv[1], O_BINARY);
+#endif
 }
 
 void
@@ -365,20 +369,6 @@ check_fd(name, mode, emsgp)
 			return -1;
 		}
 		fl &= O_ACCMODE;
-#ifdef OS2
-		if (mode == W_OK ) { 
-		       if (setmode(fd, O_TEXT) == -1) {
-				if (emsgp)
-					*emsgp = "couldn't set write mode";
-				return -1;
-			}
-		 } else if (mode == R_OK)
-	      		if (setmode(fd, O_BINARY) == -1) {
-				if (emsgp)
-					*emsgp = "couldn't set read mode";
-				return -1; 
-			}
-#else /* OS2 */
 		/* X_OK is a kludge to disable this check for dups (x<&1):
 		 * historical shells never did this check (XXX don't know what
 		 * posix has to say).
@@ -393,7 +383,6 @@ check_fd(name, mode, emsgp)
 					      : "fd not open for writing";
 			return -1;
 		}
-#endif /* OS2 */
 		return fd;
 	}
 #ifdef KSH

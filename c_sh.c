@@ -321,11 +321,7 @@ c_read(wp)
 				break;
 			while (1) {
 				c = shf_getc(shf);
-				if (c == '\0'
-#ifdef OS2
-				    || c == '\r'
-#endif /* OS2 */
-				    )
+				if (c == '\0')
 					continue;
 				if (c == EOF && shf_error(shf)
 				    && shf_errno(shf) == EINTR)
