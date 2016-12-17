@@ -323,6 +323,16 @@ c_read(wp)
 				c = shf_getc(shf);
 				if (c == '\0')
 					continue;
+#ifdef OS2
+				if (c == '\r') {
+					c = shf_getc(shf);
+					if (c != '\n') {
+						if (c != EOF)
+							shf_ungetc(c, shf);
+						c = '\r';
+					}
+				}
+#endif
 				if (c == EOF && shf_error(shf)
 				    && shf_errno(shf) == EINTR)
 				{

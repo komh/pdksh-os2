@@ -574,7 +574,23 @@ shf_getse(buf, bsize, shf)
 		buf += ncopy;
 		bsize -= ncopy;
 
+#ifdef OS2
+		if (end && buf > orig_buf + 1 && buf[-2] == '\r') {
+			buf--;
+			bsize++;
+			buf[-1] = '\n';
+		}
+#endif
 	} while (!end && bsize);
+#ifdef OS2
+	if (!bsize && buf[-1] == '\r') {
+		int c = shf_getc(shf);
+		if (c == '\n')
+			buf[-1] = '\n';
+		else if (c != EOF)
+			shf_ungetc(c, shf);
+	}
+#endif
 	*buf = '\0';
 	return buf;
 }

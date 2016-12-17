@@ -337,7 +337,7 @@ openpipe(pv)
 	pv[0] = savefd(pv[0], 0);
 	pv[1] = savefd(pv[1], 0);
 #ifdef OS2
-	setmode(pv[0], O_TEXT);
+	setmode(pv[0], O_BINARY);
 	setmode(pv[1], O_BINARY);
 #endif
 }

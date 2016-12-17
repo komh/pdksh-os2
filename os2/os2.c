@@ -233,6 +233,7 @@ void filter_thread(void *arg)
   char buf[128];
   int len;
 
+  setmode(fds[0], O_TEXT);
   while ((len = read(fds[0], buf, sizeof(buf))) > 0) {
     if (write(fds[1], buf, len) < len)
       break;
@@ -718,9 +719,13 @@ extern int _fmode_bin;
 
 void os2_init(int *argcp, char ***argvp)
 {
-    setmode (0, O_TEXT);
+    if (!isatty (0))
+        setmode (0, O_BINARY);
     if (!isatty (1))
         setmode (1, O_BINARY);
+    if (!isatty (2))
+        setmode (2, O_BINARY);
+
     _fmode_bin = 1;
 
     ksh_response (argcp, argvp);
