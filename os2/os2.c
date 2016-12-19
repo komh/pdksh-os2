@@ -290,7 +290,7 @@ my_overlayve(int flag, char *path, char **args, char **env)
   TID filter_tids[] = {-1, -1, -1};
 
   /* Install pipe filter */
-  for (i = 0; i < 3; i++) {
+  for (i = 1; i < 3; i++) {
     if (!isatty(stdio_fds[i])) {
       saved_fds[i] = dup(stdio_fds[i]);
       openpipe(stdio_phs[i]);
