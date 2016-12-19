@@ -231,13 +231,37 @@ void filter_thread(void *arg)
 {
   int *fds = (int *)arg; /* fds[0] for read, fds[1] for write */
   char buf[128];
+  char *p;
   int len;
+  int wlen;
+  int cr = 0;
 
-  setmode(fds[0], O_TEXT);
+  /* EMX appends a garbage when converting \n\r. Convert manually. */
   while ((len = read(fds[0], buf, sizeof(buf))) > 0) {
-    if (write(fds[1], buf, len) < len)
+    p = buf;
+    if (cr) {
+      char ch = '\r';
+
+      if (*p == '\n') {
+        ch = *p++;
+        len--;
+      }
+
+      /* Clear cr flag */
+      cr = 0;
+
+      if (write(fds[1], &ch, 1) != 1)
+        break;
+    }
+
+    cr = _crlf(p, len, (size_t *)&len);
+
+    if (write(fds[1], p, len) < len)
       break;
   }
+
+  if (cr)
+    write(fds[1], "\r", 1);
 
   close(fds[1]);
   close(fds[0]);
