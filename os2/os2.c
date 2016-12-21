@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <process.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <malloc.h>
 #include <string.h>
@@ -372,7 +373,9 @@ my_overlayve(int flag, char *path, char **args, char **env)
     remove_temps(0);
   if (rc < 0)
     return -1;
-  _exit(status >> 8);
+  if (WIFSIGNALED(status))
+    _exit(128 + WTERMSIG(status));
+  _exit(WEXITSTATUS(status));
 }
 
 int ksh_execve(char *cmd, char **args, char **env, int flags)
