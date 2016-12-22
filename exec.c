@@ -1243,10 +1243,6 @@ search(name, path, mode, errnop)
 		Xfree(xs, xp);
 		return NULL;
 	}
-
-	/* Look in current context always. (os2 style) */
-	if (search_access(Xstring(xs, xp), mode, errnop) == 0) 
-		return Xstring(xs, xp); /* not Xclose() - xp may be wrong */
 #else /* OS2 */
 	if (ksh_strchr_dirsep(name)) {
 		if (search_access(name, mode, errnop) == 0)
@@ -1272,9 +1268,17 @@ search(name, path, mode, errnop)
 		sp = p;
 		XcheckN(xs, xp, namelen);
 		memcpy(xp, name, namelen);
- 		if (search_access(Xstring(xs, xp), mode, errnop) == 0)
 #ifdef OS2
- 			return Xstring(xs, xp); /* Not Xclose() - see above */
+		/* Skip path without a directory part to prevent from searching the
+		 * current directory. For example, PATH=;...;;...;
+		 */
+		if (!ksh_strchr_dirsep(Xstring(xs, xp)))
+		/* nothing */;
+		else
+#endif
+		if (search_access(Xstring(xs, xp), mode, errnop) == 0)
+#ifdef OS2
+			return Xstring(xs, xp); /* Not Xclose() - see above */
 #else /* OS2 */
 			return Xclose(xs, xp + namelen);
 #endif /* OS2 */
