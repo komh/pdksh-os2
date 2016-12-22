@@ -1273,7 +1273,7 @@ search(name, path, mode, errnop)
 		 * current directory. For example, PATH=;...;;...;
 		 */
 		if (!ksh_strchr_dirsep(Xstring(xs, xp)))
-		/* nothing */;
+			/* nothing */;
 		else
 #endif
 		if (search_access(Xstring(xs, xp), mode, errnop) == 0)
