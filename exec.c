@@ -1268,14 +1268,6 @@ search(name, path, mode, errnop)
 		sp = p;
 		XcheckN(xs, xp, namelen);
 		memcpy(xp, name, namelen);
-#ifdef OS2
-		/* Skip path without a directory part to prevent from searching the
-		 * current directory. For example, PATH=;...;;...;
-		 */
-		if (!ksh_strchr_dirsep(Xstring(xs, xp)))
-		/* nothing */;
-		else
-#endif
 		if (search_access(Xstring(xs, xp), mode, errnop) == 0)
 #ifdef OS2
 			return Xstring(xs, xp); /* Not Xclose() - see above */
