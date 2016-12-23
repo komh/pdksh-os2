@@ -1263,6 +1263,11 @@ search(name, path, mode, errnop)
 			XcheckN(xs, xp, p - sp);
 			memcpy(xp, sp, p - sp);
 			xp += p - sp;
+#ifdef OS2
+			/* Remove the last / or \. For example, X:/ */
+			while (xp > Xstring(xs, xp) && ISDIRSEP(xp[-1]))
+				xp--;
+#endif
 			*xp++ = DIRSEP;
 		}
 		sp = p;
