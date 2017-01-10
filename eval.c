@@ -517,9 +517,26 @@ expand(cp, wp, f)
 				c = '\n';
 				--newlines;
 			} else {
-				while ((c = shf_getc(x.u.shf)) == 0 || c == '\n')
+				while ((c = shf_getc(x.u.shf)) == 0 ||
+#ifdef OS2
+				       c == '\r' ||
+#endif
+				       c == '\n')
+#ifdef OS2
+				{
+					if (c == '\r') {
+						c = shf_getc(x.u.shf);
+						if (c == EOF)
+							c = '\r';
+						else if (c != '\n')
+							c = shf_ungetc(c, x.u.shf);
+					}
+#endif
 				    if (c == '\n')
 					    newlines++;	/* Save newlines */
+#ifdef OS2
+				}
+#endif
 				if (newlines && c != EOF) {
 					shf_ungetc(c, x.u.shf);
 					c = '\n';
