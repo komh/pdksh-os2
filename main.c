@@ -288,7 +288,9 @@ main(argc, argv)
 		 * This changes the behavior of 'ksh arg' to search
 		 * the users search path but it can't be helped.
 		 */
-		s->file = search(argv[argi++], path, R_OK, (int *) 0);
+		s->file = argv[argi++];
+		if (search_access(s->file, R_OK, NULL) == -1)
+			s->file = search(s->file, path, R_OK, (int *) 0);
 		if (!s->file || !*s->file)
 		        s->file = argv[argi - 1];
 #else
