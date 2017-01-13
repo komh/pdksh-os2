@@ -223,7 +223,7 @@ newsession(int type, int mode, char *cmd, char **args, char **env)
 }
 
 #ifndef __KLIBC__
-#define USE_PIPE_FILTER 1
+#define USE_PIPE_FILTER 0
 #endif
 
 #if USE_PIPE_FILTER
